@@ -50,7 +50,6 @@ async function startTimer(chatId, totalSeconds) {
     parse_mode: 'Markdown'
   });
   const messageId = res.data.result.message_id;
-
   let tick = 1;
   const interval = setInterval(async () => {
     const remaining = totalSeconds - tick;
@@ -73,21 +72,18 @@ async function startTimer(chatId, totalSeconds) {
       axios.post(`${API}/editMessageText`, {
         chat_id: chatId,
         message_id: messageId,
-        text: '🔴 *OFERTA ENCERRADA*\n\n⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛\n❌ *Tempo esgotado*\n\n𝗡𝗢𝗩𝗔 ᴘʀᴏᴍᴏᴄ̧ᴀ̃ᴏ ᴀʙᴀɪxᴏ\!👇',
-        parse_mode: 'MarkdownV2'
+        text: '🔴 *OFERTA ENCERRADA*\n\n⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛\n❌ *Tempo esgotado*\n\n𝗡𝗢𝗩𝗔 ᴘʀᴏᴍᴏᴄ̧ᴀ̃ᴏ ᴀʙᴀɪxᴏ!👇',
+        parse_mode: 'Markdown'
       }).catch(() => {});
     }
     tick++;
   }, 1000);
-
   activeTimers.set(chatId, { messageId, interval });
 }
 
 function extrairChatId(body) {
-  // Novo Lead: customer.telegram_id
-  // PIX Gerado: data.customer.telegram_id
   return (
-    body.customer?.telegram_id      ||
+    body.customer?.telegram_id       ||
     body.data?.customer?.telegram_id ||
     null
   );
