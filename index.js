@@ -69,14 +69,35 @@ async function startTimer(chatId, totalSeconds) {
   }, 1000);
 }
 
+function extrairChatId(body) {
+  return (
+    body.chat_id           ||
+    body.telegram_id       ||
+    body.user_id           ||
+    body.subscriber_id     ||
+    body.id                ||
+    body.lead?.chat_id     ||
+    body.lead?.telegram_id ||
+    body.data?.chat_id     ||
+    body.data?.telegram_id ||
+    null
+  );
+}
+
 app.post('/start-timer', async (req, res) => {
-  const { chat_id, duracao } = req.body;
-  if (!chat_id) return res.status(400).json({ error: 'chat_id obrigatorio' });
-  res.json({ ok: true });
-  const segundos = duracao || 180;
-  startTimer(String(chat_id), segundos).catch(console.error);
+  console.log('Payload recebido:', JSON.stringify(req.body, null, 2));
+
+  const chatId = extrairChatId(req.body);
+
+  if (!chatId) {
+    console.log('chat_id não encontrado');
+    return res.status(400).json({ error: 'chat_id nao encontrado', payload: req.body });
+  }
+
+  const duracao = req.body.duracao || 180;
+  res.json({ ok: true, chat_id: chatId, duracao });
+  startTimer(String(chatId), duracao).catch(console.error);
 });
 
 app.get('/', (_req, res) => res.send('Timer online ✅'));
-
 app.listen(3000, () => console.log('Servidor rodando'));
