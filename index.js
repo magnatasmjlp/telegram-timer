@@ -7,8 +7,9 @@ const API   = `https://api.telegram.org/bot${TOKEN}`;
 const app = express();
 app.use(express.json());
 
-const BAR_BLOCKS = 10;
-const DOT_FRAMES = ['●∙∙', '∙●∙', '∙∙●', '∙●∙'];
+const BAR_BLOCKS   = 10;
+const DOT_FRAMES   = ['●∙∙', '∙●∙', '∙∙●', '∙●∙'];
+const activeTimers = new Map();
 
 function render(remaining, total, tick) {
   const frac   = total > 0 ? remaining / total : 0;
@@ -29,6 +30,19 @@ function render(remaining, total, tick) {
   );
 }
 
+async function cancelarAnterior(chatId) {
+  const anterior = activeTimers.get(chatId);
+  if (!anterior) return;
+  clearInterval(anterior.interval);
+  try {
+    await axios.post(`${API}/deleteMessage`, {
+      chat_id: chatId,
+      message_id: anterior.messageId
+    });
+  } catch {}
+  activeTimers.delete(chatId);
+}
+
 async function startTimer(chatId, totalSeconds) {
   const res = await axios.post(`${API}/sendMessage`, {
     chat_id: chatId,
@@ -36,6 +50,7 @@ async function startTimer(chatId, totalSeconds) {
     parse_mode: 'Markdown'
   });
   const messageId = res.data.result.message_id;
+
   let tick = 1;
   const interval = setInterval(async () => {
     const remaining = totalSeconds - tick;
@@ -54,27 +69,38 @@ async function startTimer(chatId, totalSeconds) {
     }
     if (remaining <= 0) {
       clearInterval(interval);
+      activeTimers.delete(chatId);
       axios.post(`${API}/editMessageText`, {
         chat_id: chatId,
         message_id: messageId,
-        text: '🔴 *OFERTA ENCERRADA*\n\n⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛\n❌ *Tempo esgotado*',
-        parse_mode: 'Markdown'
+        text: '🔴 *OFERTA ENCERRADA*\n\n⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛\n❌ *Tempo esgotado*\n\n𝗡𝗢𝗩𝗔 ᴘʀᴏᴍᴏᴄ̧ᴀ̃ᴏ ᴀʙᴀɪxᴏ\!👇',
+        parse_mode: 'MarkdownV2'
       }).catch(() => {});
     }
     tick++;
   }, 1000);
+
+  activeTimers.set(chatId, { messageId, interval });
+}
+
+function extrairChatId(body) {
+  // Novo Lead: customer.telegram_id
+  // PIX Gerado: data.customer.telegram_id
+  return (
+    body.customer?.telegram_id      ||
+    body.data?.customer?.telegram_id ||
+    null
+  );
 }
 
 app.post('/start-timer', async (req, res) => {
-  console.log('Payload:', JSON.stringify(req.body, null, 2));
-  const chatId = req.body?.data?.customer?.telegram_id || null;
-  console.log('chat_id encontrado:', chatId);
-  if (!chatId) {
-    return res.status(400).json({ error: 'chat_id nao encontrado' });
-  }
-  const duracao = 180;
+  console.log('Evento:', req.body?.event);
+  const chatId = extrairChatId(req.body);
+  console.log('chat_id:', chatId);
+  if (!chatId) return res.status(400).json({ error: 'chat_id nao encontrado' });
   res.json({ ok: true });
-  startTimer(String(chatId), duracao).catch(console.error);
+  await cancelarAnterior(String(chatId));
+  startTimer(String(chatId), 180).catch(console.error);
 });
 
 app.get('/', (_req, res) => res.send('Timer online ✅'));
