@@ -8,25 +8,23 @@ const app = express();
 app.use(express.json());
 
 const BAR_BLOCKS   = 10;
-const DOT_FRAMES   = ['●∙∙', '∙●∙', '∙∙●', '∙●∙'];
 const activeTimers = new Map();
 
-function render(remaining, total, tick) {
+function render(remaining, total) {
   const frac   = total > 0 ? remaining / total : 0;
   const filled = Math.round(frac * BAR_BLOCKS);
   let bloco, circulo;
   if (frac > 0.5)      { bloco = '🟩'; circulo = '🟢'; }
   else if (frac > 0.2) { bloco = '🟨'; circulo = '🟡'; }
   else                  { bloco = '🟥'; circulo = '🔴'; }
-  const barra = bloco.repeat(filled) + '⬛'.repeat(BAR_BLOCKS - filled);
+  const barra = bloco.repeat(filled) + '⬜'.repeat(BAR_BLOCKS - filled);
   const mm    = String(Math.floor(remaining / 60)).padStart(2, '0');
   const ss    = String(remaining % 60).padStart(2, '0');
-  const anim  = DOT_FRAMES[tick % DOT_FRAMES.length];
   return (
-    `⏳ *POR TEMPO LIMITADO*\n\n` +
+    `⏳ <b>OFERTA LIMITADA!</b>\n\n` +
     `${barra}\n` +
-    `${circulo} *${mm}:${ss} restantes*\n\n` +
-    `${anim} _Oferta acabando_`
+    `${circulo}⏰ <b>${mm}:${ss} restantes</b>\n\n` +
+    `🔒 <i>Condições especiais.</i>`
   );
 }
 
@@ -46,8 +44,8 @@ async function cancelarAnterior(chatId) {
 async function startTimer(chatId, totalSeconds) {
   const res = await axios.post(`${API}/sendMessage`, {
     chat_id: chatId,
-    text: render(totalSeconds, totalSeconds, 0),
-    parse_mode: 'Markdown'
+    text: render(totalSeconds, totalSeconds),
+    parse_mode: 'HTML'
   });
   const messageId = res.data.result.message_id;
   let tick = 1;
@@ -57,8 +55,8 @@ async function startTimer(chatId, totalSeconds) {
       await axios.post(`${API}/editMessageText`, {
         chat_id: chatId,
         message_id: messageId,
-        text: render(remaining, totalSeconds, tick),
-        parse_mode: 'Markdown'
+        text: render(remaining, totalSeconds),
+        parse_mode: 'HTML'
       });
     } catch (err) {
       if (err.response?.data?.error_code === 429) {
@@ -72,8 +70,8 @@ async function startTimer(chatId, totalSeconds) {
       axios.post(`${API}/editMessageText`, {
         chat_id: chatId,
         message_id: messageId,
-        text: '🔴 *OFERTA ENCERRADA*\n\n⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛\n❌ *Tempo esgotado*\n\n𝗡𝗢𝗩𝗔 ᴘʀᴏᴍᴏᴄ̧ᴀ̃ᴏ ᴀʙᴀɪxᴏ!👇',
-        parse_mode: 'Markdown'
+        text: '🔴 <b>OFERTA ENCERRADA</b>\n\n⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜\n❌ <b>Tempo esgotado</b>\n\n<b><i><u>NOVOS</u></i></b> <b>planos abaixo!</b> 👇',
+        parse_mode: 'HTML'
       }).catch(() => {});
     }
     tick++;
